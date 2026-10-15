@@ -1,52 +1,49 @@
 import { detectarArea, detectarModelo, detectarNivel, ehVagaDeTI, limparHtml } from "./classificar";
+import { fonteEmpresas } from "./fontes/empresas";
 import { VAGAS_EXEMPLO } from "./fontes/exemplo";
-import { buscarJSearch, CotaEsgotadaError, jsearchConfigurada, usoDaCota } from "./fontes/jsearch";
-import type { ParametrosBusca, VagaBruta } from "./fontes/tipos";
+import { fonteGupy } from "./fontes/gupy";
+import { fonteJSearch, jsearchConfigurada, usoDaCota } from "./fontes/jsearch";
+import type { FonteDeVagas, RegiaoBusca, VagaBruta } from "./fontes/tipos";
 import { marcarRegiaoAtualizada, regiaoAtualizadaEm, salvarVagas, vagasVistasDesde } from "./db";
 import { type Coordenadas, distanciaKm, geocodificar } from "./geo";
 import { CATEGORIA_POR_SKILL, extrairSkills } from "./skills";
-import type { Area, Fonte, Perfil, RespostaVagas, SkillFrequencia, Vaga, VagaResultado } from "./types";
-
-// Cada termo é uma chamada à API (1 crédito da cota gratuita), então são poucos e amplos.
-// Presencial, híbrido e remoto vêm juntos; os filtros são aplicados no site.
-const TERMOS = [
-  "estágio TI",
-  "desenvolvedor júnior",
-  "jovem aprendiz TI",
-  "suporte técnico júnior",
-  "analista de dados júnior",
-];
+import type { Area, Perfil, RespostaVagas, SkillFrequencia, Vaga, VagaResultado } from "./types";
 
 /**
  * Regiões atendidas. A API é consultada pela região inteira e tudo vai para o
  * banco; a distância até a pessoa é calculada no site. Por enquanto, só a
  * Grande São Paulo.
  */
-interface Regiao {
-  nome: string;
-  consulta: string; // como a região vai no texto da busca
+interface Regiao extends RegiaoBusca {
   centro: { lat: number; lon: number };
   alcanceKm: number; // quem pesquisa até essa distância do centro usa esta região
 }
 
 const REGIOES: Regiao[] = [
-  { nome: "Grande São Paulo", consulta: "São Paulo, SP", centro: { lat: -23.5505, lon: -46.6333 }, alcanceKm: 70 },
+  {
+    nome: "Grande São Paulo",
+    consulta: "São Paulo, SP",
+    estado: "São Paulo",
+    centro: { lat: -23.5505, lon: -46.6333 },
+    alcanceKm: 70,
+  },
 ];
 
 export const RAIO_MAXIMO_KM = 100;
-const MAX_GEOCODIFICACOES_POR_BUSCA = 15;
+// A Gupy informa só a cidade; cada cidade nova vira coordenadas uma vez (1 por segundo) e fica em cache.
+const MAX_GEOCODIFICACOES_POR_BUSCA = 40;
 // Região atualizada há mais que isso volta à API; vaga não vista há mais que isso é considerada encerrada.
 const VALIDADE_HORAS = 48;
 
-const FONTES: { nome: Fonte; ativa: () => boolean; buscar: (p: ParametrosBusca) => Promise<VagaBruta[]> }[] = [
-  { nome: "jsearch", ativa: jsearchConfigurada, buscar: buscarJSearch },
-];
+// Fontes de vagas. Cada uma é independente: se uma falhar, as outras continuam.
+const FONTES: FonteDeVagas[] = [fonteJSearch, fonteGupy, fonteEmpresas];
 
 function classificar(b: VagaBruta): Vaga | null {
   const descricao = limparHtml(b.descricao);
   const titulo = limparHtml(b.titulo);
   if (!ehVagaDeTI(titulo)) return null;
-  const nivel = detectarNivel(titulo, descricao);
+  // Se a fonte já informa o nível (a Gupy informa), ele vale mais que a dedução pelo texto.
+  const nivel = b.nivel ?? detectarNivel(titulo, descricao);
   if (!nivel) return null;
 
   const texto = `${titulo} ${descricao}`;
@@ -58,7 +55,7 @@ function classificar(b: VagaBruta): Vaga | null {
     local: b.local,
     lat: b.lat,
     lon: b.lon,
-    modelo: detectarModelo(titulo, descricao, b.remoto ?? /^remot/i.test(b.local)),
+    modelo: b.modelo ?? detectarModelo(titulo, descricao, b.remoto ?? /^remot/i.test(b.local)),
     nivel,
     area: detectarArea(titulo, skills),
     descricao,
@@ -142,15 +139,16 @@ function atualizarRegiao(regiao: Regiao, fontes: typeof FONTES): Promise<string[
   if (emAndamento) return emAndamento;
 
   const tarefa = (async () => {
-    const buscas = fontes.flatMap((fonte) => TERMOS.map((termo) => ({ fonte, p: { termo, cidade: regiao.consulta } })));
-    const resultados = await Promise.allSettled(buscas.map(({ fonte, p }) => fonte.buscar(p)));
+    // Todas as fontes ao mesmo tempo; cada uma cuida dos próprios termos e pausas.
+    const resultados = await Promise.allSettled(fontes.map((f) => f.coletar(regiao)));
 
     const brutas: VagaBruta[] = [];
-    const falhas = new Set<string>();
+    const falhas: string[] = [];
     resultados.forEach((r, i) => {
-      if (r.status === "fulfilled") brutas.push(...r.value);
-      else if (r.reason instanceof CotaEsgotadaError) falhas.add(r.reason.message);
-      else falhas.add(`Falha ao buscar em ${buscas[i].fonte.nome}: ${(r.reason as Error).message}`);
+      if (r.status === "fulfilled") {
+        brutas.push(...r.value.vagas);
+        falhas.push(...r.value.falhas);
+      } else falhas.push(`Falha ao buscar em ${fontes[i].nome}: ${(r.reason as Error).message}`);
     });
 
     await completarCoordenadas(brutas);
@@ -158,7 +156,7 @@ function atualizarRegiao(regiao: Regiao, fontes: typeof FONTES): Promise<string[
     salvarVagas(brutas, agora);
     // Só marca a região como atualizada se ao menos uma busca deu certo.
     if (resultados.some((r) => r.status === "fulfilled")) marcarRegiaoAtualizada(regiao.nome, agora);
-    return [...falhas];
+    return falhas;
   })();
 
   mapeandoAgora.set(regiao.nome, tarefa);
@@ -193,7 +191,7 @@ export async function buscarVagas(perfil: Perfil): Promise<RespostaVagas> {
         ? `Não encontrei a localização "${perfil.local}". Confira a cidade ou o CEP.`
         : "Digite sua cidade ou CEP para buscar vagas perto de você.",
     );
-    return { vagas: [], requisitosMaisPedidos: [], origem, fontes: ativas.map((f) => f.nome), avisos, cota: await usoDaCota() };
+    return { vagas: [], requisitosMaisPedidos: [], origem, fontes: ativas.map((f) => f.nome), avisos, cota: jsearchConfigurada() ? await usoDaCota() : undefined };
   }
 
   // 1. Qual região atende quem está pesquisando?
@@ -217,6 +215,6 @@ export async function buscarVagas(perfil: Perfil): Promise<RespostaVagas> {
     origem,
     fontes: ativas.map((f) => f.nome),
     avisos,
-    cota: await usoDaCota(),
+    cota: jsearchConfigurada() ? await usoDaCota() : undefined,
   };
 }

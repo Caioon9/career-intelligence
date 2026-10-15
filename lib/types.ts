@@ -12,7 +12,7 @@ export type Area =
   | "seguranca"
   | "geral";
 
-export type Fonte = "jsearch" | "exemplo";
+export type Fonte = "jsearch" | "gupy" | "greenhouse" | "lever" | "ashby" | "exemplo";
 
 /** Vaga já normalizada, independente da fonte de onde veio. */
 export interface Vaga {
@@ -62,7 +62,7 @@ export interface RespostaVagas {
   vagas: VagaResultado[];
   requisitosMaisPedidos: SkillFrequencia[];
   origem: { lat: number; lon: number; nome: string } | null;
-  fontes: Fonte[];
+  fontes: string[];
   avisos: string[];
   cota?: { usadas: number; limite: number };
 }

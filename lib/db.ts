@@ -12,7 +12,7 @@ import type { VagaBruta } from "./fontes/tipos";
  */
 
 const ARQUIVO = path.join(process.cwd(), ".data", "vagas.db");
-const VERSAO_ESQUEMA = 2;
+const VERSAO_ESQUEMA = 3;
 
 function abrir() {
   mkdirSync(path.dirname(ARQUIVO), { recursive: true });
@@ -41,6 +41,8 @@ function abrir() {
       publicada_em TEXT,
       salario      TEXT,
       remoto       INTEGER,            -- 1/0, ou NULL se a fonte não informou
+      nivel        TEXT,               -- informado pela fonte (ex.: Gupy), ou NULL
+      modelo       TEXT,               -- informado pela fonte (ex.: Gupy), ou NULL
       salva_em     INTEGER NOT NULL,   -- primeira vez que veio da API (ms)
       vista_em     INTEGER NOT NULL    -- última vez que veio da API (ms)
     );
@@ -81,8 +83,8 @@ export function marcarRegiaoAtualizada(nome: string, quando: number) {
 export function salvarVagas(vagas: VagaBruta[], quando: number): number {
   const jaExiste = db.prepare("UPDATE vagas SET vista_em = ? WHERE id = ? OR chave = ?");
   const inserir = db.prepare(`
-    INSERT INTO vagas (id, chave, fonte, id_externo, titulo, empresa, local, lat, lon, descricao, url, publicada_em, salario, remoto, salva_em, vista_em)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO vagas (id, chave, fonte, id_externo, titulo, empresa, local, lat, lon, descricao, url, publicada_em, salario, remoto, nivel, modelo, salva_em, vista_em)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   let novas = 0;
   db.exec("BEGIN");
@@ -93,7 +95,7 @@ export function salvarVagas(vagas: VagaBruta[], quando: number): number {
       if (jaExiste.run(quando, id, chave).changes > 0) continue;
       inserir.run(
         id, chave, v.fonte, v.idExterno, v.titulo, v.empresa, v.local, v.lat ?? null, v.lon ?? null, v.descricao, v.url,
-        v.publicadaEm ?? null, v.salario ?? null, v.remoto === undefined ? null : Number(v.remoto), quando, quando,
+        v.publicadaEm ?? null, v.salario ?? null, v.remoto === undefined ? null : Number(v.remoto), v.nivel ?? null, v.modelo ?? null, quando, quando,
       );
       novas++;
     }
@@ -118,6 +120,8 @@ interface LinhaVaga {
   publicada_em: string | null;
   salario: string | null;
   remoto: number | null;
+  nivel: VagaBruta["nivel"] | null;
+  modelo: VagaBruta["modelo"] | null;
 }
 
 /** Vagas vistas na API a partir de `desde` (as mais antigas são consideradas encerradas). */
@@ -136,5 +140,7 @@ export function vagasVistasDesde(desde: number): VagaBruta[] {
     publicadaEm: l.publicada_em ?? undefined,
     salario: l.salario ?? undefined,
     remoto: l.remoto === null ? undefined : l.remoto === 1,
+    nivel: l.nivel ?? undefined,
+    modelo: l.modelo ?? undefined,
   }));
 }

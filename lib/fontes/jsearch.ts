@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import type { ParametrosBusca, VagaBruta } from "./tipos";
+import type { FonteDeVagas, ParametrosBusca, VagaBruta } from "./tipos";
 
 /**
  * JSearch (RapidAPI): vagas do Google for Jobs, que agrega LinkedIn, Indeed,
@@ -123,3 +123,23 @@ async function buscar({ termo, cidade }: ParametrosBusca): Promise<VagaBruta[]> 
   const { data } = (await res.json()) as { data?: { jobs?: JSearchVaga[] } };
   return (data?.jobs ?? []).map(normalizar);
 }
+
+// Cada termo é 1 crédito da cota gratuita, então são poucos e amplos.
+// Presencial, híbrido e remoto vêm juntos; os filtros são aplicados no site.
+const TERMOS = ["estágio TI", "desenvolvedor júnior", "jovem aprendiz TI", "suporte técnico júnior", "analista de dados júnior"];
+
+export const fonteJSearch: FonteDeVagas = {
+  nome: "jsearch",
+  ativa: jsearchConfigurada,
+  async coletar(regiao) {
+    const resultados = await Promise.allSettled(TERMOS.map((termo) => buscarJSearch({ termo, cidade: regiao.consulta })));
+    const vagas: VagaBruta[] = [];
+    const falhas = new Set<string>();
+    for (const r of resultados) {
+      if (r.status === "fulfilled") vagas.push(...r.value);
+      else falhas.add(r.reason instanceof CotaEsgotadaError ? r.reason.message : `JSearch: ${(r.reason as Error).message}`);
+    }
+    if (vagas.length === 0 && falhas.size) throw new Error([...falhas].join(" "));
+    return { vagas, falhas: [...falhas] };
+  },
+};

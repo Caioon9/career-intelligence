@@ -1,5 +1,5 @@
 import type { VagaResultado } from "@/lib/types";
-import { MODELOS, NIVEIS, ROTULO_AREA } from "../rotulos";
+import { FONTES, MODELOS, NIVEIS, ROTULO_AREA } from "../rotulos";
 
 function haQuanto(iso?: string) {
   if (!iso) return null;
@@ -36,6 +36,7 @@ export function CartaoVaga({ vaga }: { vaga: VagaResultado }) {
         {vaga.distanciaKm !== undefined && <span>{vaga.distanciaKm} km de você</span>}
         {quando && <span>{quando}</span>}
         {vaga.salario && <span>{vaga.salario}</span>}
+        {vaga.fonte !== "exemplo" && <span>via {FONTES[vaga.fonte]}</span>}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
