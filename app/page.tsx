@@ -12,14 +12,47 @@ const PERFIL_PADRAO: Perfil = {
   niveis: ["estagio", "aprendiz", "trainee", "junior"],
   modelos: ["presencial", "hibrido", "remoto"],
   areas: [],
+  trilhas: [],
+  soBigTechs: false,
   skills: [],
 };
 
 const CHAVE_STORAGE = "vagas-ti:perfil";
 
-type Ordem = "match" | "distancia" | "recentes";
+type Ordem = "recomendadas" | "match" | "distancia" | "recentes";
 
-const ORDENAR: Record<Ordem, (a: VagaResultado, b: VagaResultado) => number> = {
+/** Nota de 0 a 1 que mistura compatibilidade, data de publicação e distância. */
+function pontuacao(v: VagaResultado, raioKm: number) {
+  const dias = v.publicadaEm ? (Date.now() - Date.parse(v.publicadaEm)) / 86_400_000 : 30;
+  const recencia = Math.max(0, 1 - dias / 60); // publicada hoje = 1; com 60 dias ou mais = 0
+  const proximidade =
+    v.modelo === "remoto" ? 0.7 : v.distanciaKm === undefined ? 0.3 : Math.max(0, 1 - v.distanciaKm / Math.max(raioKm, 1));
+  const compatibilidade = v.match === null ? 0.5 : v.match / 100;
+  return 0.45 * compatibilidade + 0.35 * recencia + 0.2 * proximidade;
+}
+
+/**
+ * Ordena pela pontuação e reveza as fontes, para uma fonte com muitas vagas não
+ * ocupar o topo inteiro: cada fonte tem sua fila (da melhor para a pior) e, a
+ * cada rodada, entra uma vaga de cada fonte, começando pela que tem a melhor da vez.
+ */
+function recomendadas(vagas: VagaResultado[], raioKm: number) {
+  const nota = new Map(vagas.map((v) => [v.id, pontuacao(v, raioKm)]));
+  const filas = new Map<string, VagaResultado[]>();
+  for (const v of [...vagas].sort((a, b) => nota.get(b.id)! - nota.get(a.id)!)) {
+    const fila = filas.get(v.fonte) ?? [];
+    fila.push(v);
+    filas.set(v.fonte, fila);
+  }
+  const ordenadas: VagaResultado[] = [];
+  while (ordenadas.length < vagas.length) {
+    const rodada = [...filas.values()].filter((f) => f.length).sort((a, b) => nota.get(b[0].id)! - nota.get(a[0].id)!);
+    for (const fila of rodada) ordenadas.push(fila.shift()!);
+  }
+  return ordenadas;
+}
+
+const ORDENAR: Record<Exclude<Ordem, "recomendadas">, (a: VagaResultado, b: VagaResultado) => number> = {
   match: (a, b) => (b.match ?? 0) - (a.match ?? 0) || (a.distanciaKm ?? 1e9) - (b.distanciaKm ?? 1e9),
   distancia: (a, b) => (a.distanciaKm ?? (a.modelo === "remoto" ? 0 : 1e9)) - (b.distanciaKm ?? (b.modelo === "remoto" ? 0 : 1e9)),
   recentes: (a, b) => (b.publicadaEm ?? "").localeCompare(a.publicadaEm ?? ""),
@@ -30,7 +63,7 @@ export default function Home() {
   const [resposta, setResposta] = useState<RespostaVagas | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [ordem, setOrdem] = useState<Ordem>("match");
+  const [ordem, setOrdem] = useState<Ordem>("recomendadas");
 
   const buscar = useCallback(async (p: Perfil) => {
     setCarregando(true);
@@ -42,6 +75,8 @@ export default function Home() {
         niveis: p.niveis.join(","),
         modelos: p.modelos.join(","),
         areas: p.areas.join(","),
+        trilhas: p.trilhas.join(","),
+        bigtechs: p.soBigTechs ? "1" : "0",
         skills: p.skills.join(","),
       });
       const res = await fetch(`/api/vagas?${qs}`);
@@ -72,7 +107,10 @@ export default function Home() {
     } catch {}
   };
 
-  const vagas = useMemo(() => [...(resposta?.vagas ?? [])].sort(ORDENAR[ordem]), [resposta, ordem]);
+  const vagas = useMemo(() => {
+    const lista = resposta?.vagas ?? [];
+    return ordem === "recomendadas" ? recomendadas(lista, perfil.raioKm) : [...lista].sort(ORDENAR[ordem]);
+  }, [resposta, ordem, perfil.raioKm]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -114,6 +152,7 @@ export default function Home() {
                     onChange={(e) => setOrdem(e.target.value as Ordem)}
                     className="rounded-md border border-zinc-300 bg-transparent px-2 py-1 dark:border-zinc-700"
                   >
+                    <option value="recomendadas">Recomendadas</option>
                     <option value="match">Compatibilidade</option>
                     <option value="distancia">Distância</option>
                     <option value="recentes">Mais recentes</option>

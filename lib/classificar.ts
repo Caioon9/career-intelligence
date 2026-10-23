@@ -1,5 +1,5 @@
 import { CATEGORIA_POR_SKILL } from "./skills";
-import type { Area, Modelo, Nivel } from "./types";
+import type { Area, Modelo, Nivel, Trilha } from "./types";
 
 // Bordas de palavra que entendem acentos (o \b do JS não entende).
 const A = "(?<![\\p{L}\\d])";
@@ -123,6 +123,31 @@ export function detectarArea(titulo: string, skills: string[]): Area {
   if (front >= 2 && back >= 2) return "fullstack";
   const [melhor] = [...contagem.entries()].sort((a, b) => b[1] - a[1]);
   return melhor?.[0] ?? "geral";
+}
+
+// Títulos de quem escreve código no dia a dia (inclui engenharia de dados).
+const DESENVOLVIMENTO = palavras([
+  "desenvolv\\p{L}*", "develop\\p{L}*", "programa(?:dor|dora|dor\\(a\\)|[çc][ãa]o)", "dev", "devs", "software",
+  "engenh(?:eiro|eira|aria)(?:\\(a\\))? de (?:software|dados|computa[çc][ãa]o|sistemas)", "software engineer",
+  "data engineer", "engenheir[oa] de dados", "front[- ]?end", "back[- ]?end", "full[- ]?stack",
+  "mobile", "android", "ios", "flutter",
+]);
+
+const TRILHA_POR_AREA: Record<Area, Trilha> = {
+  frontend: "desenvolvimento",
+  backend: "desenvolvimento",
+  fullstack: "desenvolvimento",
+  mobile: "desenvolvimento",
+  dados: "dados",
+  infra: "infra",
+  qa: "qa",
+  devops: "devops",
+  seguranca: "seguranca",
+  geral: "outros",
+};
+
+export function detectarTrilha(titulo: string, area: Area): Trilha {
+  return DESENVOLVIMENTO.test(titulo) ? "desenvolvimento" : TRILHA_POR_AREA[area];
 }
 
 export function limparHtml(html: string): string {
