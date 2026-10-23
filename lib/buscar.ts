@@ -1,4 +1,5 @@
-import { detectarArea, detectarModelo, detectarNivel, ehVagaDeTI, limparHtml } from "./classificar";
+import { ehBigTech } from "./bigtechs";
+import { detectarArea, detectarModelo, detectarNivel, detectarTrilha, ehVagaDeTI, limparHtml } from "./classificar";
 import { fonteEmpresas } from "./fontes/empresas";
 import { VAGAS_EXEMPLO } from "./fontes/exemplo";
 import { fonteGupy } from "./fontes/gupy";
@@ -48,6 +49,7 @@ function classificar(b: VagaBruta): Vaga | null {
 
   const texto = `${titulo} ${descricao}`;
   const skills = extrairSkills(texto);
+  const area = detectarArea(titulo, skills);
   return {
     id: `${b.fonte}-${b.idExterno}`,
     titulo,
@@ -57,7 +59,8 @@ function classificar(b: VagaBruta): Vaga | null {
     lon: b.lon,
     modelo: b.modelo ?? detectarModelo(titulo, descricao, b.remoto ?? /^remot/i.test(b.local)),
     nivel,
-    area: detectarArea(titulo, skills),
+    area,
+    trilha: detectarTrilha(titulo, area),
     descricao,
     url: b.url,
     fonte: b.fonte,
@@ -167,7 +170,9 @@ function filtrarPeloPerfil(brutas: VagaBruta[], perfil: Perfil, origem: Coordena
   return removerDuplicadas(brutas.map(classificar).filter((v): v is Vaga => v !== null))
     .map((v) => calcularResultado(v, perfil, origem))
     .filter((v) => perfil.niveis.length === 0 || perfil.niveis.includes(v.nivel))
-    .filter((v) => perfil.modelos.length === 0 || perfil.modelos.includes(v.modelo));
+    .filter((v) => perfil.modelos.length === 0 || perfil.modelos.includes(v.modelo))
+    .filter((v) => perfil.trilhas.length === 0 || perfil.trilhas.includes(v.trilha))
+    .filter((v) => !perfil.soBigTechs || ehBigTech(v.empresa));
 }
 
 export async function buscarVagas(perfil: Perfil): Promise<RespostaVagas> {

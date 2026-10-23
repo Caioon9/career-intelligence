@@ -1,21 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import { BIG_TECHS } from "@/lib/bigtechs";
 import { CATEGORIA_POR_SKILL, TODAS_SKILLS } from "@/lib/skills";
 import type { Perfil } from "@/lib/types";
-import { AREAS, MODELOS, NIVEIS } from "../rotulos";
+import { AREAS, MODELOS, NIVEIS, TRILHAS } from "../rotulos";
 
 function alternar<T>(lista: T[], item: T) {
   return lista.includes(item) ? lista.filter((x) => x !== item) : [...lista, item];
 }
 
-function Chip({ ativo, onClick, children }: { ativo: boolean; onClick: () => void; children: React.ReactNode }) {
+function Chip({ ativo, onClick, children, desativado = false }: {
+  ativo: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  desativado?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={ativo}
-      className={`rounded-full border px-3 py-1 text-sm transition ${
+      disabled={desativado}
+      className={`rounded-full border px-3 py-1 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
         ativo
           ? "border-indigo-600 bg-indigo-600 text-white"
           : "border-zinc-300 text-zinc-700 hover:border-indigo-400 dark:border-zinc-700 dark:text-zinc-300"
@@ -26,10 +33,11 @@ function Chip({ ativo, onClick, children }: { ativo: boolean; onClick: () => voi
   );
 }
 
-function Grupo({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function Grupo({ titulo, dica, children }: { titulo: string; dica?: string; children: React.ReactNode }) {
   return (
     <fieldset className="space-y-2">
       <legend className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{titulo}</legend>
+      {dica && <p className="text-xs text-zinc-500">{dica}</p>}
       <div className="flex flex-wrap gap-2">{children}</div>
     </fieldset>
   );
@@ -99,7 +107,22 @@ export function PainelPerfil({ perfil, onChange, onBuscar, carregando }: {
         ))}
       </Grupo>
 
-      <Grupo titulo="Áreas de interesse">
+      <Grupo titulo="Mostrar só" dica="Esconde as vagas de outros tipos. Nada marcado mostra todas.">
+        {Object.entries(TRILHAS).map(([k, v]) => (
+          <Chip key={k} ativo={perfil.trilhas.includes(k as never)} onClick={() => set({ trilhas: alternar(perfil.trilhas, k as never) })}>
+            {v}
+          </Chip>
+        ))}
+        <Chip
+          ativo={perfil.soBigTechs && BIG_TECHS.length > 0}
+          desativado={BIG_TECHS.length === 0}
+          onClick={() => set({ soBigTechs: !perfil.soBigTechs })}
+        >
+          Só big techs{BIG_TECHS.length === 0 && " · em breve"}
+        </Chip>
+      </Grupo>
+
+      <Grupo titulo="Áreas de interesse" dica="Não esconde vagas: só aumenta a compatibilidade das áreas escolhidas.">
         {Object.entries(AREAS).map(([k, v]) => (
           <Chip key={k} ativo={perfil.areas.includes(k as never)} onClick={() => set({ areas: alternar(perfil.areas, k as never) })}>
             {v}

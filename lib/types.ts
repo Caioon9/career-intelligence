@@ -12,6 +12,9 @@ export type Area =
   | "seguranca"
   | "geral";
 
+/** Tipo de trabalho do dia a dia, usado no filtro "Mostrar só". */
+export type Trilha = "desenvolvimento" | "dados" | "infra" | "qa" | "devops" | "seguranca" | "outros";
+
 export type Fonte = "jsearch" | "gupy" | "greenhouse" | "lever" | "ashby" | "exemplo";
 
 /** Vaga já normalizada, independente da fonte de onde veio. */
@@ -25,6 +28,7 @@ export interface Vaga {
   modelo: Modelo;
   nivel: Nivel;
   area: Area;
+  trilha: Trilha;
   descricao: string;
   url: string;
   fonte: Fonte;
@@ -46,7 +50,9 @@ export interface Perfil {
   raioKm: number;
   niveis: Nivel[];
   modelos: Modelo[];
-  areas: Area[];
+  areas: Area[]; // só influencia a compatibilidade
+  trilhas: Trilha[]; // filtro: vazio = todas
+  soBigTechs: boolean;
   skills: string[];
 }
 

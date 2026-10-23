@@ -1,4 +1,4 @@
-import type { Area, Fonte, Modelo, Nivel } from "@/lib/types";
+import type { Area, Fonte, Modelo, Nivel, Trilha } from "@/lib/types";
 
 export const NIVEIS: Record<Nivel, string> = {
   estagio: "Estágio",
@@ -26,6 +26,16 @@ export const AREAS: Record<Exclude<Area, "geral">, string> = {
 };
 
 export const ROTULO_AREA = (a: Area) => (a === "geral" ? "TI geral" : AREAS[a]);
+
+export const TRILHAS: Record<Trilha, string> = {
+  desenvolvimento: "Desenvolvimento (código)",
+  dados: "Dados / BI",
+  infra: "Suporte / Infra",
+  qa: "QA / Testes",
+  devops: "DevOps / Cloud",
+  seguranca: "Segurança",
+  outros: "Outros",
+};
 
 export const FONTES: Record<Fonte, string> = {
   jsearch: "Google Jobs",

@@ -15,6 +15,8 @@ Este projeto junta essas vagas num lugar só, filtra pelo seu perfil e pela dist
 - **Lista os requisitos de cada vaga** (linguagens, ferramentas, idiomas...) e marca em verde o que você já sabe.
 - **Calcula a compatibilidade** entre você e cada vaga.
 - **Mostra os requisitos mais pedidos** no conjunto das vagas, ex.: "32% pedem Git", com uma prioridade de estudo.
+- **Analisa currículos em PDF ou DOCX** com a API da Groq e permite salvar o relatório em PDF.
+- **Organiza o texto original do currículo** em seções e permite baixar o currículo em PDF sem inventar experiências ou outras informações.
 
 ### Próximos passos
 
@@ -47,7 +49,20 @@ Abra http://localhost:3000.
 
 > O `.env.local` é ignorado pelo Git. **Nunca coloque a chave em outro arquivo.**
 
-### 4. Usando o site
+### 4. Ativar a análise de currículos
+
+1. Crie uma chave de API na [Groq Console](https://console.groq.com/keys).
+2. Configure `GROQ_API_KEY` no `.env.local`; opcionalmente escolha o modelo principal com `GROQ_MODEL` (padrão: `openai/gpt-oss-120b`) e uma lista de modelos alternativos em `GROQ_FALLBACK_MODELS`, separados por vírgula (padrão: `openai/gpt-oss-20b,qwen/qwen3.8-27b`).
+3. `CURRICULO_MAX_UPLOAD_MB` controla o limite de upload (padrão: 5 MB; o máximo aceito é 5 MB).
+4. Reinicie o servidor e abra **Analisar currículo** na página inicial.
+
+Se o modelo principal estiver indisponível, limitado, retornar erro temporário ou uma resposta fora do formato esperado, o servidor tenta até dois fallbacks em sequência (no máximo três modelos por análise). Erros de autenticação e de solicitação não repetem a chamada. Configure apenas IDs de modelos disponíveis na sua conta Groq.
+
+O arquivo é processado em memória pelo servidor e não é armazenado. Após consentimento, o texto extraído e a descrição de vaga fornecida são enviados à Groq para análise. O texto é limitado antes do envio; os registros do servidor não incluem o conteúdo do currículo. A extração tenta o parser PDF atual e usa um parser legado como alternativa para documentos incompatíveis; PDFs protegidos por senha precisam ser desbloqueados antes do envio. PDFs digitalizados que precisem de OCR não são analisados. A limitação de requisições é local ao processo e não substitui controles de infraestrutura em implantações com múltiplas instâncias. Este fluxo não constitui declaração de conformidade integral com a LGPD.
+
+O currículo reorganizado usa somente trechos literais verificados no texto extraído; trechos que não puderem ser confirmados são omitidos, sem invalidar o restante da análise. Notas por categoria podem aparecer como “Sem nota” quando não houver evidência suficiente. O currículo também omite informações ausentes e a seção de experiência quando não há uma seção profissional explícita no documento. A organização prioriza estágio e nível júnior, com perfil e contato, formação, certificados, cursos, experiência (se houver), projetos, conhecimentos e informações adicionais, nessa ordem; busca ser concisa, idealmente em uma página e limitada a duas, com títulos claros e leitura adequada por ATS. Sugestões sobre dados que poderiam fortalecer o documento aparecem no plano de ação, sem serem inseridas como fatos no currículo. Os exemplos são apenas referências de apresentação: seus nomes, contatos, empresas, datas e resultados nunca são reutilizados. O currículo e o relatório são gerados no servidor do aplicativo como arquivos PDF baixados diretamente, sem abrir a janela de impressão ou armazenar os documentos.
+
+### 5. Usando o site
 
 1. Digite sua **cidade ou CEP** e escolha a **distância máxima**.
 2. Escolha os **tipos de vaga**, o **modelo de trabalho** e as **áreas de interesse**.
@@ -89,6 +104,9 @@ O plano gratuito da JSearch tem um limite mensal de chamadas (200). Para nunca p
 | `lib/geo.ts` | CEP → cidade (ViaCEP), cidade → coordenadas (Nominatim/OpenStreetMap), distância |
 | `app/api/vagas/route.ts` | Endpoint `GET /api/vagas` |
 | `app/page.tsx` | Interface |
+| `app/curriculo/page.tsx` | Envio do currículo e relatório de análise |
+| `app/api/curriculo/analisar/route.ts` | Validação do upload e endpoint da análise |
+| `lib/curriculo/` | Extração de texto, validação e integração de servidor com a Groq |
 
 ### Adicionando uma região
 

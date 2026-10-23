@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Primeira vaga em TI",
-  description: "Vagas de estágio, jovem aprendiz e júnior em TI perto de você",
+  title: "Primeira vaga em TI | Vagas e análise de currículo",
+  description: "Encontre vagas de entrada em TI e receba uma análise orientativa do seu currículo.",
 };
 
 export default function RootLayout({
