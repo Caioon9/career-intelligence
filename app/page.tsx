@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Perfil, RespostaVagas, VagaResultado } from "@/lib/types";
 import { CartaoVaga } from "./componentes/CartaoVaga";
@@ -115,10 +116,20 @@ export default function Home() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <header className="mb-8">
-        <h1 className="text-2xl font-bold">Primeira vaga em TI</h1>
-        <p className="text-zinc-600 dark:text-zinc-400">
-          Estágio, jovem aprendiz, trainee e júnior perto de você, com os requisitos de cada vaga.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Primeira vaga em TI</h1>
+            <p className="text-zinc-600 dark:text-zinc-400">
+              Estágio, jovem aprendiz, trainee e júnior perto de você, com os requisitos de cada vaga.
+            </p>
+          </div>
+          <Link
+            href="/curriculo"
+            className="rounded-lg border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
+          >
+            Analisar currículo
+          </Link>
+        </div>
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[320px_1fr]">

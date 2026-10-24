@@ -24,3 +24,44 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm;
+  }
+
+  body {
+    background: #fff !important;
+    color: #171717 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  article section,
+  article footer {
+    break-inside: avoid;
+  }
+
+  article,
+  article * {
+    color: #171717 !important;
+    border-color: #d4d4d8 !important;
+  }
+
+  article [class*="bg-"] {
+    background-color: #fff !important;
+  }
+
+  article [style*="width:"] {
+    background-color: #4f46e5 !important;
+  }
+
+}

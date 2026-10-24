@@ -9,9 +9,15 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "next": "15.5.27",
+    "@react-pdf/renderer": "^4.9.0",
+    "groq-sdk": "^1.6.0",
+    "mammoth": "^1.13.0",
+    "next": "15.5.28",
+    "pdf-parse": "^2.4.5",
+    "pdf-parse-legacy": "npm:pdf-parse@^1.1.1",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -20,8 +26,12 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.5.27",
+    "eslint-config-next": "15.5.28",
+    "postcss": "^8.5.29",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "postcss": "^8.5.29"
   }
 }
